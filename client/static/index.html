@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Stream Client</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+            text-align: center;
+        }
+        #videoFeed {
+            max-width: 100%;
+            height: auto;
+            border-radius: 5px;
+            margin: 20px 0;
+            background: #eee;
+        }
+        #status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .connected {
+            background-color: #e7f5e7;
+            color: #2e7d32;
+        }
+        .disconnected {
+            background-color: #fde7e7;
+            color: #c62828;
+        }
+        .connecting {
+            background-color: #fff3e0;
+            color: #ef6c00;
+        }
+        .error-message {
+            color: #c62828;
+            margin: 10px 0;
+            padding: 10px;
+            background: #fde7e7;
+            border-radius: 5px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Video Stream</h1>
+        <div id="status" class="disconnected">Disconnected</div>
+        <img id="videoFeed" alt="Video Stream" src="" style="display: none;">
+        <div id="errorMessage" class="error-message"></div>
+    </div>
+
+    <script>
+        const videoFeed = document.getElementById('videoFeed');
+        const status = document.getElementById('status');
+        const errorMessage = document.getElementById('errorMessage');
+        let retryCount = 0;
+        const maxRetries = 3;
+        let retryTimeout;
+
+        function updateStatus(state, message) {
+            status.className = state;
+            status.textContent = message;
+            errorMessage.style.display = message.includes('Error') ? 'block' : 'none';
+            errorMessage.textContent = message.includes('Error') ? message : '';
+        }
+
+        function connectToStream() {
+            updateStatus('connecting', 'Connecting...');
+            videoFeed.style.display = 'none';
+            
+            const img = new Image();
+            img.onload = function() {
+                videoFeed.src = 'http://localhost:8080/stream';
+                videoFeed.style.display = 'block';
+                updateStatus('connected', 'Connected');
+                retryCount = 0;
+            };
+            
+            img.onerror = function() {
+                retryCount++;
+                if (retryCount <= maxRetries) {
+                    updateStatus('disconnected', `Connection failed. Retrying (${retryCount}/${maxRetries})...`);
+                    retryTimeout = setTimeout(connectToStream, 2000);
+                } else {
+                    updateStatus('disconnected', 'Error: Unable to connect to stream server');
+                }
+            };
+            
+            img.src = 'http://localhost:8080/stream';
+        }
+
+        // Initial connection attempt
+        connectToStream();
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            clearTimeout(retryTimeout);
+        });
+    </script>
+</body>
+</html>
+
